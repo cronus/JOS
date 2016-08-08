@@ -149,6 +149,7 @@
 #include <inc/types.h>
 
 // Segment Descriptors
+// number after colon (":") is the width in bits
 struct Segdesc {
 	unsigned sd_lim_15_0 : 16;  // Low bits of segment limit
 	unsigned sd_base_15_0 : 16; // Low bits of segment base address
@@ -168,15 +169,37 @@ struct Segdesc {
 #define SEG_NULL	(struct Segdesc){ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
 // Segment that is loadable but faults when used
 #define SEG_FAULT	(struct Segdesc){ 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0 }
+
 // Normal segment
 #define SEG(type, base, lim, dpl) (struct Segdesc)			\
-{ ((lim) >> 12) & 0xffff, (base) & 0xffff, ((base) >> 16) & 0xff,	\
-    type, 1, dpl, 1, (unsigned) (lim) >> 28, 0, 0, 1, 1,		\
-    (unsigned) (base) >> 24 }
+{ ((lim) >> 12) & 0xffff, \
+  (base) & 0xffff, \
+  ((base) >> 16) & 0xff,\
+  type, \
+  1, \
+  dpl, \
+  1, \
+  (unsigned) (lim) >> 28, \
+  0,\
+  0,\
+  1,\
+  1,\
+  (unsigned) (base) >> 24 }
+
 #define SEG16(type, base, lim, dpl) (struct Segdesc)			\
-{ (lim) & 0xffff, (base) & 0xffff, ((base) >> 16) & 0xff,		\
-    type, 1, dpl, 1, (unsigned) (lim) >> 16, 0, 0, 1, 0,		\
-    (unsigned) (base) >> 24 }
+{ (lim) & 0xffff, \
+  (base) & 0xffff,\
+  ((base) >> 16) & 0xff,\
+  type, \
+  1,\
+  dpl,\
+  1,\
+  (unsigned) (lim) >> 16,\
+  0,\
+  0,\
+  1,\
+  0,\
+  (unsigned) (base) >> 24 }
 
 #endif /* !__ASSEMBLER__ */
 
