@@ -49,6 +49,7 @@ endif
 
 # try to infer the correct QEMU
 ifndef QEMU
+# no qemu in $PATH, will see "which: no qemu ...., it's ok
 QEMU := $(shell if which qemu > /dev/null; \
 	then echo qemu; exit; \
         elif which qemu-system-i386 > /dev/null; \

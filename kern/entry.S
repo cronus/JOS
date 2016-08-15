@@ -9,7 +9,8 @@
 
 ###################################################################
 # The kernel (this code) is linked at address ~(KERNBASE + 1 Meg), 
-# but the bootloader loads it at address ~1 Meg.
+# (0xF000_0000 + 0x0010_0000)
+# but the bootloader loads it at address ~1 Meg (0x0010_0000).
 #	
 # RELOC(x) maps a symbol x from its link address to its actual
 # location in physical memory (its load address).	 
@@ -64,6 +65,8 @@ entry:
 	# Now paging is enabled, but we're still running at a low EIP
 	# (why is this okay?).  Jump up above KERNBASE before entering
 	# C code.
+    # bocui comment:
+    # indirect jump
 	mov	$relocated, %eax
 	jmp	*%eax
 relocated:
