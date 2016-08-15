@@ -57,11 +57,18 @@ bootmain(void)
 
 	// call the entry point from the ELF header
 	// note: does not return!
+    // bocui add comments
+    // after compile
+    // 7d6b:	ff 15 18 00 01 00    	call   *0x10018
+    // adress 0x10018 is no the entry point, it is the address of ELFHDR->e_entry, 
+    // whichi is a pointer to the entry point.
 	((void (*)(void)) (ELFHDR->e_entry))();
 
 bad:
 	outw(0x8A00, 0x8A00);
-	outw(0x8A00, 0x8E00);
+    //bocui change 
+	//outw(0x8A00, 0x8E00);
+	outw(0x8A00, 0x8AE0);
 	while (1)
 		/* do nothing */;
 }
@@ -76,6 +83,7 @@ readseg(uint32_t pa, uint32_t count, uint32_t offset)
 	end_pa = pa + count;
 
 	// round down to sector boundary
+    // bocui commment ~ is bit-wise not
 	pa &= ~(SECTSIZE - 1);
 
 	// translate from bytes to sectors, and kernel starts at sector 1
@@ -109,6 +117,14 @@ readsect(void *dst, uint32_t offset)
 	// wait for disk to be ready
 	waitdisk();
 
+/*
+bocui
+configure IDE port to read data from HD (details in /materials/ata_reference_manual.pdf
+p15 ATA interface io registers
+p18 drive/head register
+p34 read op code 0x20h
+p16 data register
+*/
 	outb(0x1F2, 1);		// count = 1
 	outb(0x1F3, offset);
 	outb(0x1F4, offset >> 8);
