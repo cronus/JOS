@@ -13,6 +13,10 @@ static void cons_intr(int (*proc)(void));
 static void cons_putc(int c);
 
 // Stupid I/O delay routine necessitated by historical PC design flaws
+//bocui comment
+//0x84 is used to access "extra page register". 
+//But reading this register should be a noop. 
+//Only the read operation itself is important to consume CPU cycles.
 static void
 delay(void)
 {
@@ -149,9 +153,13 @@ cga_init(void)
 	}
 
 	/* Extract cursor location */
-	outb(addr_6845, 14);
+    //bocui change to hex
+	//outb(addr_6845, 14);
+	outb(addr_6845, 0x0E);
 	pos = inb(addr_6845 + 1) << 8;
-	outb(addr_6845, 15);
+    //bocui change to hex
+	//outb(addr_6845, 15);
+	outb(addr_6845, 0x0F);
 	pos |= inb(addr_6845 + 1);
 
 	crt_buf = (uint16_t*) cp;
@@ -177,6 +185,8 @@ cga_putc(int c)
 	case '\n':
 		crt_pos += CRT_COLS;
 		/* fallthru */
+    // for \r: go to the first character of the "same" line
+    // new input will overwrite current characters
 	case '\r':
 		crt_pos -= (crt_pos % CRT_COLS);
 		break;
