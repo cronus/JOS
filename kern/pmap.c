@@ -156,6 +156,7 @@ mem_init(void)
 	// to initialize all fields of each struct PageInfo to 0.
 	// Your code goes here:
     pages = (struct PageInfo*)boot_alloc(npages*sizeof(struct PageInfo));
+    envs = (struct Env*)boot_alloc(NENV*sizeof(struct Env));
     memset(page2kva(pages), 0, sizeof(struct PageInfo)*npages);
 
     //cprintf("4\n");
@@ -204,6 +205,11 @@ mem_init(void)
 	//    - the new image at UENVS  -- kernel R, user R
 	//    - envs itself -- kernel RW, user NONE
 	// LAB 3: Your code here.
+	n = ROUNDUP(NENV*sizeof(struct Env), PGSIZE);
+    for (i = 0; i < n; i += PGSIZE ) {
+        page_insert(kern_pgdir, pa2page(PADDR(envs)+i), (uint32_t*)(UENVS+i), PTE_U);
+        page_insert(kern_pgdir, pa2page(PADDR(envs)+i), envs+i, 0x0);
+    }
 
 	//////////////////////////////////////////////////////////////////////
 	// Use the physical memory that 'bootstack' refers to as the kernel
@@ -317,7 +323,8 @@ page_init(void)
 
     // currently used memory, kernel, pgdir and free list
     uint32_t next_free = (uint32_t)pages - KERNBASE 
-                         + ROUNDUP(sizeof(struct PageInfo)*npages, PGSIZE);
+                         + ROUNDUP(sizeof(struct PageInfo)*npages, PGSIZE)
+                         + ROUNDUP(sizeof(struct Env)*NENV, PGSIZE);
     //cprintf("info: pages %x, next_free:%x\n", pages, next_free);
     for (i = EXTPHYSMEM/PGSIZE; i < next_free/PGSIZE; i++) {
         pages[i].pp_ref  = 1;
@@ -610,8 +617,32 @@ int
 user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 {
 	// LAB 3: Your code here.
-
-	return 0;
+    const void *i;
+    uint32_t rounddown_offset;
+    pte_t * pte_ptr;
+    rounddown_offset = (uint32_t)(va - ROUNDDOWN(va, PGSIZE));
+    //cprintf("fist rounddown %x, rounddown offset %x\n",ROUNDDOWN(va, PGSIZE), rounddown_offset);
+    for (i = ROUNDDOWN(va, PGSIZE); i < ROUNDUP(va+len, PGSIZE); i+=PGSIZE) {
+        if ((uint32_t)i > ULIM) {
+            user_mem_check_addr = (uintptr_t)va;
+            return -E_FAULT;
+        }
+        if ((pte_ptr = pgdir_walk(env->env_pgdir, i, 0))) {
+            if ((*pte_ptr & (perm|PTE_P)) != (perm|PTE_P)) {
+                if (i == ROUNDDOWN(va, PGSIZE)) {
+                    user_mem_check_addr = (uintptr_t)i + rounddown_offset;
+                    return -E_FAULT;
+                }
+                else {
+                    user_mem_check_addr = (uintptr_t)i;
+                    return -E_FAULT;
+                }
+            }
+        }
+        else
+	        return -E_FAULT;
+    }
+    return 0;
 }
 
 //
