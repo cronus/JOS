@@ -30,6 +30,7 @@ top:
 	// filter out multiples of our prime
 	while (1) {
 		i = ipc_recv(&envid, 0, 0);
+        //cprintf("received i:%d\n", i);
 		if (i % p)
 			ipc_send(id, i, 0, 0);
 	}
@@ -47,7 +48,9 @@ umain(int argc, char **argv)
 		primeproc();
 
 	// feed all the integers through
-	for (i = 2; ; i++)
+	for (i = 2; ; i++) {
+        //cprintf("send i:%d\n", i);
 		ipc_send(id, i, 0, 0);
+    }
 }
 
