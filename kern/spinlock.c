@@ -8,6 +8,7 @@
 #include <kern/cpu.h>
 #include <kern/spinlock.h>
 #include <kern/kdebug.h>
+#include <kern/env.h>
 
 // The big kernel lock
 struct spinlock kernel_lock = {
@@ -68,6 +69,9 @@ spin_lock(struct spinlock *lk)
 	// The xchg is atomic.
 	// It also serializes, so that reads after acquire are not
 	// reordered before it. 
+    //if (curenv){
+    //    cprintf("acq lock,id:%x, cpu:%d\n", curenv->env_id, curenv->env_cpunum);
+    //}
 	while (xchg(&lk->locked, 1) != 0)
 		asm volatile ("pause");
 
@@ -83,6 +87,7 @@ void
 spin_unlock(struct spinlock *lk)
 {
 #ifdef DEBUG_SPINLOCK
+    //cprintf("[spin_unlock]hold:%x\n", holding(lk));
 	if (!holding(lk)) {
 		int i;
 		uint32_t pcs[10];
@@ -116,5 +121,8 @@ spin_unlock(struct spinlock *lk)
 	// after a store. So lock->locked = 0 would work here.
 	// The xchg being asm volatile ensures gcc emits it after
 	// the above assignments (and after the critical section).
+    //if (curenv) {
+    //    cprintf("release lock,id:%x, cpu:%d\n", curenv->env_id, curenv->env_cpunum);
+    //}
 	xchg(&lk->locked, 0);
 }

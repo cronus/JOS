@@ -94,6 +94,7 @@ boot_alloc(uint32_t n)
 	if (!nextfree) {
 		extern char end[];
 		nextfree = ROUNDUP((char *) end, PGSIZE);
+        //cprintf("next free:%x\n", nextfree);
 	}
 
 	// Allocate a chunk large enough to hold 'n' bytes, then update
@@ -159,7 +160,7 @@ mem_init(void)
 	// Your code goes here:
     pages = (struct PageInfo*)boot_alloc(npages*sizeof(struct PageInfo));
     envs = (struct Env*)boot_alloc(NENV*sizeof(struct Env));
-    memset(page2kva(pages), 0, sizeof(struct PageInfo)*npages);
+    memset(pages, 0, npages*sizeof(struct PageInfo));
 
     //cprintf("4\n");
 
@@ -296,6 +297,19 @@ mem_init_mp(void)
 	//     Permissions: kernel RW, user NONE
 	//
 	// LAB 4: Your code here:
+    uint32_t i;
+    uint32_t j;
+    pte_t * pte_ptr;
+    for (i = 0; i < NCPU; i++) {
+        //cprintf("i:%x, percpu_kstack:%x\n",i, percpu_kstacks[i]);
+        for (j = 0; j < KSTKSIZE; j += PGSIZE) {
+            page_insert(kern_pgdir, pa2page(PADDR(percpu_kstacks[i]) + j), (uint32_t*)(KSTACKTOP - i * (KSTKSIZE + KSTKGAP) - KSTKSIZE + j), PTE_W);
+        }
+        for (j = 0; j < KSTKGAP; j += PGSIZE) {
+            pte_ptr = pgdir_walk(kern_pgdir, (uint32_t*)(KSTACKTOP - (i + 1) * (KSTKSIZE + KSTKGAP) + j), 1);
+            pte_ptr = 0x0;
+        }
+    }
 
 }
 
@@ -347,7 +361,11 @@ page_init(void)
     pages[0].pp_link = NULL;
     pages[1].pp_link = NULL;
 
-    //cprintf("page_init:1\n");
+    //for lab4 remove MPENTRY_PADDR
+    pages[MPENTRY_PADDR/PGSIZE].pp_ref = 1;
+    pages[MPENTRY_PADDR/PGSIZE].pp_link = NULL;
+    pages[MPENTRY_PADDR/PGSIZE + 1].pp_link = &pages[MPENTRY_PADDR/PGSIZE - 1];
+
     //IO hole
     for (i = npages_basemem; i < EXTPHYSMEM/PGSIZE; i++) {
         pages[i].pp_ref  = 1;
@@ -506,7 +524,7 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
     uint32_t i;
     for (i = ROUNDDOWN(va, PGSIZE); i < va + size; i += PGSIZE) { 
         pte_ptr   = pgdir_walk(pgdir, (uint32_t*)i, 1);
-        *pte_ptr = pa | perm | PTE_P;
+        *pte_ptr = (pa + i - ROUNDDOWN(va, PGSIZE)) | perm | PTE_P;
     }
 }
 
@@ -659,7 +677,16 @@ mmio_map_region(physaddr_t pa, size_t size)
 	// Hint: The staff solution uses boot_map_region.
 	//
 	// Your code here:
-	panic("mmio_map_region not implemented");
+	//panic("mmio_map_region not implemented");
+    uint32_t alloc_size = ROUNDUP(size, PGSIZE);
+    if (base + alloc_size < MMIOLIM) {
+        boot_map_region(kern_pgdir, base, alloc_size, pa, PTE_PCD|PTE_PWT|PTE_W);
+        base += alloc_size;
+    }
+    else {
+        panic("mmio_map_region exceeds MMIOLIM!");
+    }
+    return (void*)(base - alloc_size);
 }
 
 static uintptr_t user_mem_check_addr;
@@ -692,6 +719,7 @@ user_mem_check(struct Env *env, const void *va, size_t len, int perm)
     rounddown_offset = (uint32_t)(va - ROUNDDOWN(va, PGSIZE));
     //cprintf("fist rounddown %x, rounddown offset %x\n",ROUNDDOWN(va, PGSIZE), rounddown_offset);
     for (i = ROUNDDOWN(va, PGSIZE); i < ROUNDUP(va+len, PGSIZE); i+=PGSIZE) {
+        //cprintf("check addr i:%x\n", i);
         if ((uint32_t)i > ULIM) {
             user_mem_check_addr = (uintptr_t)va;
             return -E_FAULT;
@@ -708,8 +736,10 @@ user_mem_check(struct Env *env, const void *va, size_t len, int perm)
                 }
             }
         }
-        else
+        else{
+            user_mem_check_addr = (uintptr_t)i + rounddown_offset;
 	        return -E_FAULT;
+        }
     }
     return 0;
 }
@@ -724,6 +754,7 @@ user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 void
 user_mem_assert(struct Env *env, const void *va, size_t len, int perm)
 {
+    //cprintf("[user_mem_assert]va:%x\n", va); 
 	if (user_mem_check(env, va, len, perm | PTE_U) < 0) {
 		cprintf("[%08x] user_mem_check assertion failure for "
 			"va %08x\n", env->env_id, user_mem_check_addr);

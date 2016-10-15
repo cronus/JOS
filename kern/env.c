@@ -99,6 +99,7 @@ envid2env(envid_t envid, struct Env **env_store, bool checkperm)
 	// If checkperm is set, the specified environment
 	// must be either the current environment
 	// or an immediate child of the current environment.
+    //cprintf("envid:%d, checkperm:%d, e:%x, curenv:%x, parent id: %d, curenv id: %d\n", envid,checkperm, e, curenv, e->env_parent_id, curenv->env_id);
 	if (checkperm && e != curenv && e->env_parent_id != curenv->env_id) {
 		*env_store = 0;
 		return -E_BAD_ENV;
@@ -191,36 +192,39 @@ env_setup_vm(struct Env *e)
 	// LAB 3: Your code here.
     uint32_t n;
     pte_t * pte_ptr;
+    p->pp_ref += 1;
     e->env_pgdir = (pde_t*)page2kva(p);
+    //copy kern_pgdir to env_pgdir
+    memmove(e->env_pgdir, kern_pgdir, PGSIZE);
     // UPAGES, UPAGES + PTSIZE
-	n = ROUNDUP(npages*sizeof(struct PageInfo), PGSIZE);
-    for (i = 0; i < n; i += PGSIZE ) {
-        page_insert(e->env_pgdir, pa2page(PADDR(pages)+i), (uint32_t*)(UPAGES+i), PTE_U);
-        page_insert(e->env_pgdir, pa2page(PADDR(pages)+i), pages+i, 0x0);
-    }
+	//n = ROUNDUP(npages*sizeof(struct PageInfo), PGSIZE);
+    //for (i = 0; i < n; i += PGSIZE ) {
+    //    page_insert(e->env_pgdir, pa2page(PADDR(pages)+i), (uint32_t*)(UPAGES+i), PTE_U);
+    //    page_insert(e->env_pgdir, pa2page(PADDR(pages)+i), pages+i, 0x0);
+    //}
 
-    // UENVS, UENVS + PTSIZE
-	n = ROUNDUP(NENV*sizeof(struct Env), PGSIZE);
-    for (i = 0; i < n; i += PGSIZE ) {
-        page_insert(e->env_pgdir, pa2page(PADDR(envs)+i), (uint32_t*)(UENVS+i), PTE_U);
-        page_insert(e->env_pgdir, pa2page(PADDR(envs)+i), envs+i, 0x0);
-        //cprintf("i:%x,phyaddr:%x,ro va: %x, no r va: %x\n", i, (PADDR(envs)+i), UENVS+i, envs+i);
-    }
+    //// UENVS, UENVS + PTSIZE
+	//n = ROUNDUP(NENV*sizeof(struct Env), PGSIZE);
+    //for (i = 0; i < n; i += PGSIZE ) {
+    //    page_insert(e->env_pgdir, pa2page(PADDR(envs)+i), (uint32_t*)(UENVS+i), PTE_U);
+    //    page_insert(e->env_pgdir, pa2page(PADDR(envs)+i), envs+i, 0x0);
+    //    //cprintf("i:%x,phyaddr:%x,ro va: %x, no r va: %x\n", i, (PADDR(envs)+i), UENVS+i, envs+i);
+    //}
 
-    // KSTACKTOP - PTSIZE, KSTACKTOP 
-    for (i = 0; i < KSTKSIZE; i += PGSIZE) {
-        page_insert(e->env_pgdir, pa2page(PADDR(bootstack) + i), (uint32_t*)(KSTACKTOP-KSTKSIZE+i), PTE_W);
-    }
-    for (i = KSTACKTOP - PTSIZE; i < KSTACKTOP - KSTKSIZE; i += PGSIZE) {
-        pte_ptr = pgdir_walk(e->env_pgdir, (uint32_t*)i, 1);
-        pte_ptr = 0x0;
-    }
+    //// KSTACKTOP - PTSIZE, KSTACKTOP 
+    //for (i = 0; i < KSTKSIZE; i += PGSIZE) {
+    //    page_insert(e->env_pgdir, pa2page(PADDR(bootstack) + i), (uint32_t*)(KSTACKTOP-KSTKSIZE+i), PTE_W);
+    //}
+    //for (i = KSTACKTOP - PTSIZE; i < KSTACKTOP - KSTKSIZE; i += PGSIZE) {
+    //    pte_ptr = pgdir_walk(e->env_pgdir, (uint32_t*)i, 1);
+    //    pte_ptr = 0x0;
+    //}
 
-    // KERNBASE, 2^32
-    for (i = 0; i < 0x100000000 - KERNBASE; i += PGSIZE) {
-        pte_ptr  = pgdir_walk(e->env_pgdir, (uint32_t*)(i+KERNBASE), 1);
-        *pte_ptr = i  | PTE_W | PTE_P;
-    }
+    //// KERNBASE, 2^32
+    //for (i = 0; i < 0x100000000 - KERNBASE; i += PGSIZE) {
+    //    pte_ptr  = pgdir_walk(e->env_pgdir, (uint32_t*)(i+KERNBASE), 1);
+    //    *pte_ptr = i  | PTE_W | PTE_P;
+    //}
 
 	// UVPT maps the env's own page table read-only.
 	// Permissions: kernel R, user R
@@ -250,7 +254,7 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 	// Allocate and set up the page directory for this environment.
 	if ((r = env_setup_vm(e)) < 0)
 		return r;
-
+    
 	// Generate an env_id for this environment.
 	generation = (e->env_id + (1 << ENVGENSHIFT)) & ~(NENV - 1);
 	if (generation <= 0)	// Don't create a negative env_id.
@@ -286,6 +290,7 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 
 	// Enable interrupts while in user mode.
 	// LAB 4: Your code here.
+    e->env_tf.tf_eflags = FL_IF;
 
 	// Clear the page fault handler until user installs one.
 	e->env_pgfault_upcall = 0;
@@ -548,7 +553,8 @@ void
 env_pop_tf(struct Trapframe *tf)
 {
 	// Record the CPU we are running on for user-space debugging
-	curenv->env_cpunum = cpunum();
+    // move it before releasing kernel lock, otherwise cause old cpu run the env again
+	//curenv->env_cpunum = cpunum();
 
 	__asm __volatile("movl %0,%%esp\n"
 		"\tpopal\n"
@@ -587,16 +593,18 @@ env_run(struct Env *e)
 	//	e->env_tf to sensible values.
 
 	// LAB 3: Your code here.
-    //cprintf("[env_run]1, curenv:%x\n", curenv);
+    
     if (curenv && (curenv->env_status == ENV_RUNNING)) {
         curenv->env_status = ENV_RUNNABLE;
     }
     curenv = e;
     curenv->env_status = ENV_RUNNING;
     curenv->env_runs += 1;
-    //cprintf("[env_run]3, pgdir addr: %x, id:%x\n", PADDR(curenv->env_pgdir), curenv->env_id);
     lcr3(PADDR(curenv->env_pgdir));
-    //cprintf("[env_run]4, entry addr %x\n", curenv->env_tf.tf_eip);
+    //cprintf("[env_run]unlock\n");
+	curenv->env_cpunum = cpunum();
+    //cprintf("[env_run] old cpu: %d, new cpu:%d, id:%x\n", curenv->env_cpunum, cpunum(), curenv->env_id);
+    unlock_kernel(); 
     env_pop_tf(&(curenv->env_tf));
 
 	//panic("env_run not yet implemented");

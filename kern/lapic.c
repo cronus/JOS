@@ -14,7 +14,7 @@
 #define ID      (0x0020/4)   // ID
 #define VER     (0x0030/4)   // Version
 #define TPR     (0x0080/4)   // Task Priority
-#define EOI     (0x00B0/4)   // EOI
+#define EOI     (0x00B0/4)   // EOI (bocui end of interrupt)
 #define SVR     (0x00F0/4)   // Spurious Interrupt Vector
 	#define ENABLE     0x00000100   // Unit Enable
 #define ESR     (0x0280/4)   // Error Status
@@ -49,6 +49,7 @@ static void
 lapicw(int index, int value)
 {
 	lapic[index] = value;
+    //bocui hw guarantee the order "read after write"
 	lapic[ID];  // wait for write to finish, by reading
 }
 
@@ -147,8 +148,14 @@ lapic_startap(uint8_t apicid, uint32_t addr)
 	// "The BSP must initialize CMOS shutdown code to 0AH
 	// and the warm reset vector (DWORD based at 40:67) to point at
 	// the AP startup code prior to the [universal startup algorithm]."
+    // bocui: above quote from B.4 of multiprocessor specification
+    // bocui:
+    // access CMOS registers:
+    //  1. select a CMOS register by sending the register number to port 0x70
+    //  2. either read the value on port 0x71 (inb), or write a new value to that
+    //     register (outb)
 	outb(IO_RTC, 0xF);  // offset 0xF is shutdown code
-	outb(IO_RTC+1, 0x0A);
+	outb(IO_RTC+1, 0x0A); // bocui: JMP double word pointer without EOI
 	wrv = (uint16_t *)KADDR((0x40 << 4 | 0x67));  // Warm reset vector
 	wrv[0] = 0;
 	wrv[1] = addr >> 4;

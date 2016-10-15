@@ -42,4 +42,10 @@ void simderr();
 
 void enter_syscall();
 
+void timer();
+void kbd();
+void serial();
+void spurious();
+void ide();
+
 #endif /* JOS_KERN_TRAP_H */

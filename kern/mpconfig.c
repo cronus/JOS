@@ -119,7 +119,7 @@ mpsearch(void)
 	} else {
 		// The size of base memory, in KB is in the two bytes
 		// starting at 0x13 of the BDA.
-		p = *(uint16_t *) (bda + 0x13) * 1024;
+		p = (*(uint16_t *) (bda + 0x13)) * 1024;
 		if ((mp = mpsearch1(p - 1024, 1024)))
 			return mp;
 	}
