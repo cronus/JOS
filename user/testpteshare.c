@@ -18,6 +18,7 @@ umain(int argc, char **argv)
 	if ((r = sys_page_alloc(0, VA, PTE_P|PTE_W|PTE_U|PTE_SHARE)) < 0)
 		panic("sys_page_alloc: %e", r);
 
+    //cprintf("[testpteshare]addr:%x, content:%x\n", VA, uvpt[PGNUM(VA)]);
 	// check fork
 	if ((r = fork()) < 0)
 		panic("fork: %e", r);

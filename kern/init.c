@@ -25,6 +25,10 @@ i386_init(void)
 {
 	extern char edata[], end[];
 
+    //bocui test
+    //int x = 1, y = 3, z = 4;
+    //unsigned int i = 0x00646c72;
+
 	// Before doing anything else, complete the ELF loading process.
 	// Clear the uninitialized global data (BSS) section of our program.
 	// This ensures that all static/global variables start out zero.
@@ -35,6 +39,12 @@ i386_init(void)
 	cons_init();
 
 	cprintf("6828 decimal is %o octal!\n", 6828);
+    //cprintf("Question 3:\n");
+    //cprintf("x=%d,y=%x,z=%d\n", x, y, z);
+    //cprintf("Question 4:\n");
+    //cprintf("H%x Wo%s\n", 57616, &i);
+    //cprintf("Question 5:\n");
+    //cprintf("m=%d n=%d\n", 3);
 
 	// Lab 2 memory management initialization functions
 	mem_init();
@@ -56,6 +66,7 @@ i386_init(void)
 
 	// Acquire the big kernel lock before waking up APs
 	// Your code here:
+    lock_kernel();
 
 	// Starting non-boot CPUs
 	boot_aps();
@@ -73,7 +84,7 @@ i386_init(void)
 	ENV_CREATE(TEST, ENV_TYPE_USER);
 #else
 	// Touch all you want.
-	ENV_CREATE(user_icode, ENV_TYPE_USER);
+	ENV_CREATE(user_primespipe, ENV_TYPE_USER);
 #endif // TEST*
 
 	// Should not be necessary - drains keyboard because interrupt has given up.
@@ -133,9 +144,11 @@ mp_main(void)
 	// only one CPU can enter the scheduler at a time!
 	//
 	// Your code here:
+    lock_kernel();
+	sched_yield();
 
 	// Remove this after you finish Exercise 4
-	for (;;);
+	//for (;;);
 }
 
 /*

@@ -32,6 +32,7 @@ pipe(int pfd[2])
 	struct Fd *fd0, *fd1;
 	void *va;
 
+    //cprintf("[pipe]1env id:%x, thisenv:%x, addr of thisenv:%x, thisenv in pgtable:%x\n", thisenv->env_id, thisenv, &thisenv, uvpt[PGNUM((uint32_t)(thisenv))]);
 	// allocate the file descriptor table entries
 	if ((r = fd_alloc(&fd0)) < 0
 	    || (r = sys_page_alloc(0, fd0, PTE_P|PTE_W|PTE_U|PTE_SHARE)) < 0)
@@ -77,6 +78,7 @@ _pipeisclosed(struct Fd *fd, struct Pipe *p)
 {
 	int n, nn, ret;
 
+    //cprintf("[_pipeisclosed]thisenv id:%x\n", thisenv->env_id);
 	while (1) {
 		n = thisenv->env_runs;
 		ret = pageref(fd) == pageref(p);
@@ -185,6 +187,7 @@ devpipe_stat(struct Fd *fd, struct Stat *stat)
 static int
 devpipe_close(struct Fd *fd)
 {
+    //cprintf("[devpipe_close]fd:%x\n", fd);
 	(void) sys_page_unmap(0, fd);
 	return sys_page_unmap(0, fd2data(fd));
 }

@@ -29,7 +29,36 @@ sched_yield(void)
 	// below to halt the cpu.
 
 	// LAB 4: Your code here.
+    uint32_t i;
+    uint32_t cur_envx;
 
+    if (curenv) {
+        cur_envx = ENVX(curenv->env_id);
+    }
+    else {
+        cur_envx = 0;
+    }
+    idle = 0;
+    for (i = 0; i < NENV; i++) {
+        if (envs[(cur_envx + i) % NENV].env_status != ENV_RUNNABLE) {
+            continue;
+        }
+        //cprintf("cpu: %d, %d\n", thiscpu->cpu_id, envs[i].env_status);
+        idle = &envs[(cur_envx + i) % NENV];
+        //cprintf("find from runnable, work cpu:%d, env:%x, status:%d\n", thiscpu->cpu_id, idle->env_id, idle->env_status);
+        env_run(idle);
+    }
+    for (i = 0; i < NENV; i++) {
+      if (envs[(cur_envx + i) % NENV].env_status == ENV_RUNNING ) {
+          if (envs[(cur_envx + i) % NENV].env_cpunum == thiscpu->cpu_id) {
+              idle = &envs[(cur_envx + i) % NENV];
+              //cprintf("find from running, running on cpu %d, work cpu:%d, env:%x, status:%d\n", idle->env_cpunum, thiscpu->cpu_id, idle->env_id, idle->env_status);
+              env_run(idle);
+          }
+      }
+    }
+
+    //cprintf("%d: no env to run\n", thiscpu->cpu_id);
 	// sched_halt never returns
 	sched_halt();
 }
@@ -42,6 +71,7 @@ sched_halt(void)
 {
 	int i;
 
+    //cprintf("enter halt\n");
 	// For debugging and testing purposes, if there are no runnable
 	// environments in the system, then drop into the kernel monitor.
 	for (i = 0; i < NENV; i++) {

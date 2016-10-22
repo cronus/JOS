@@ -8,7 +8,7 @@ umain(int argc, char **argv)
 
 	binaryname = "icode";
 
-	cprintf("icode startup\n");
+	cprintf("[%x]icode startup\n", thisenv->env_id);
 
 	cprintf("icode: open /motd\n");
 	if ((fd = open("/motd", O_RDONLY)) < 0)
