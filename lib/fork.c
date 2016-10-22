@@ -26,8 +26,9 @@ pgfault(struct UTrapframe *utf)
 	//   (see <inc/memlayout.h>).
 
 	// LAB 4: Your code here.
+    // FEC_WR 0x2
     if (!((err & FEC_WR) && ((PGOFF(uvpt[((unsigned)addr/PGSIZE)]) & PTE_COW) == PTE_COW)))
-        panic("[pgfault]panic at addr:%x", addr);
+        panic("[pgfault]panic at addr:%x, err:%x, page offset:%x", addr, err, PGOFF(uvpt[((unsigned)addr/PGSIZE)]));
 
 	// Allocate a new page, map it at a temporary location (PFTEMP),
 	// copy the data from the old page to the new page, then move the new
@@ -72,13 +73,17 @@ duppage(envid_t envid, unsigned pn)
 	// LAB 4: Your code here.
 	// panic("duppage not implemented");
     
-    //cprintf("pn: %x, page:%x, content:%x, flag: %x\n", pn, addr, uvpt[pn], PGOFF(uvpt[pn]));
-    if ((PGOFF(uvpt[pn]) & PTE_W) || (PGOFF(uvpt[pn]) & PTE_COW)) {
+    if (PGOFF(uvpt[pn]) & PTE_SHARE) {
+        //cprintf("[duppage]handle shared page\n");
+        if ((r = sys_page_map(0, (void*)addr, envid, (void*)addr, uvpt[pn] & PTE_SYSCALL)) < 0)
+	    	panic("sys_page_map child: %e", r);
+    }
+    else if ((PGOFF(uvpt[pn]) & PTE_W) || (PGOFF(uvpt[pn]) & PTE_COW)) {
         //cprintf("writeable page: addr:%x\n", addr);
-        if ((r = sys_page_map(0, (void*)addr, envid, (void*)addr, PTE_P|PTE_U|PTE_AVAIL)) < 0)
+        if ((r = sys_page_map(0, (void*)addr, envid, (void*)addr, PTE_P|PTE_U|PTE_COW)) < 0)
 	    	panic("sys_page_map child: %e", r);
         //uvpt[pn] = uvpt[pn] | PTE_COW;
-        if ((r = sys_page_map(0, (void*)addr, 0, (void*)addr, PTE_P|PTE_U|PTE_AVAIL)) < 0)
+        if ((r = sys_page_map(0, (void*)addr, 0, (void*)addr, PTE_P|PTE_U|PTE_COW)) < 0)
 	    	panic("sys_page_map parent: %e", r);
     }
     else if (PGOFF(uvpt[pn] & PTE_P)){
@@ -136,9 +141,12 @@ fork(void)
 
     // parent
     //cprintf("end:%x\n", end);
-    for (addr = (uint8_t*) UTEXT; addr < end; addr += PGSIZE) {
-        //cprintf("addr:%x, pn:%x\n", addr, (unsigned)addr/PGSIZE);
-        duppage(envid, (unsigned)addr/PGSIZE);
+    //for (addr = (uint8_t*) UTEXT; addr < end; addr += PGSIZE) {
+    for (addr = (uint8_t*) UTEXT; addr < (uint8_t*)(USTACKTOP - PGSIZE); addr += PGSIZE) {
+        if (uvpd[PDX(addr)]) {
+           //cprintf("[fork]addr:%x, content:%x\n", addr, uvpt[PGNUM(addr)]);
+           duppage(envid, (unsigned)addr/PGSIZE);
+        }
     }
 
     // copy the stack we are currently running on

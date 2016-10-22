@@ -80,6 +80,7 @@ ipc_send(envid_t to_env, uint32_t val, void *pg, int perm)
     else {
         r = sys_ipc_try_send(to_env, val, (void*)UTOP, perm);
     }
+    //cprintf("\n[ipc_send]cpu:%d, %x, perm:%x, yield r:%e\n", thisenv->env_cpunum,thisenv->env_id, perm, r);
     while (r != 0) {
         //cprintf("\n[ipc_send]cpu:%d, %x yield r:%e\n", thisenv->env_cpunum,thisenv->env_id, r);
         sys_yield();

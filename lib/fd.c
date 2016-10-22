@@ -57,6 +57,7 @@ fd_alloc(struct Fd **fd_store)
 		fd = INDEX2FD(i);
 		if ((uvpd[PDX(fd)] & PTE_P) == 0 || (uvpt[PGNUM(fd)] & PTE_P) == 0) {
 			*fd_store = fd;
+            //cprintf("[fd_alloc]env id:%x, fd:%x\n", thisenv->env_id, *fd_store);
 			return 0;
 		}
 	}

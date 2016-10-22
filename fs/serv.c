@@ -90,6 +90,7 @@ openfile_lookup(envid_t envid, uint32_t fileid, struct OpenFile **po)
 	struct OpenFile *o;
 
 	o = &opentab[fileid % MAXOPEN];
+    //cprintf("%d, %d, %d\n\n",pageref(o->o_fd), o->o_fileid, fileid);
 	if (pageref(o->o_fd) <= 1 || o->o_fileid != fileid)
 		return -E_INVAL;
 	*po = o;
@@ -137,7 +138,7 @@ serve_open(envid_t envid, struct Fsreq_open *req,
 try_open:
 		if ((r = file_open(path, &f)) < 0) {
 			if (debug)
-				cprintf("file_open failed: %e", r);
+				cprintf("file_open failed: %e\n", r);
 			return r;
 		}
 	}
@@ -214,7 +215,16 @@ serve_read(envid_t envid, union Fsipc *ipc)
 		cprintf("serve_read %08x %08x %08x\n", envid, req->req_fileid, req->req_n);
 
 	// Lab 5: Your code here:
-	return 0;
+    struct OpenFile *o;
+    int r;
+	if ((r = openfile_lookup(envid, req->req_fileid, &o)) < 0)
+		return r;
+    r = file_read(o->o_file, (void*)ipc->readRet.ret_buf, req->req_n, o->o_fd->fd_offset);
+    if (r >= 0) {
+        o->o_fd->fd_offset += r;
+        //cprintf("[serve_read]r:%d\n",r);
+    }
+	return r;
 }
 
 
@@ -229,7 +239,19 @@ serve_write(envid_t envid, struct Fsreq_write *req)
 		cprintf("serve_write %08x %08x %08x\n", envid, req->req_fileid, req->req_n);
 
 	// LAB 5: Your code here.
-	panic("serve_write not implemented");
+    //
+    struct OpenFile *o;
+    int r;
+
+	if ((r = openfile_lookup(envid, req->req_fileid, &o)) < 0){
+        //cprintf("[serve_write]%s,r:%e\n", req, r);
+		return r;
+    }
+    r = file_write(o->o_file, req->req_buf, req->req_n, o->o_fd->fd_offset);
+    if (r >= 0) {
+        o->o_fd->fd_offset += r;
+    }
+    return r;
 }
 
 // Stat ipc->stat.req_fileid.  Return the file's struct Stat to the
@@ -315,13 +337,16 @@ serve(void)
 
 		pg = NULL;
 		if (req == FSREQ_OPEN) {
+            //cprintf("[serve]req is open, path:%s\n", ((struct Fsreq_open*)fsreq)->req_path);
 			r = serve_open(whom, (struct Fsreq_open*)fsreq, &pg, &perm);
 		} else if (req < NHANDLERS && handlers[req]) {
+            //cprintf("[serve]req is others\n");
 			r = handlers[req](whom, fsreq);
 		} else {
 			cprintf("Invalid request code %d from %08x\n", req, whom);
 			r = -E_INVAL;
 		}
+        //cprintf("[serve]id:%x, r:%d, pg:%x, perm:%x\n", whom, r, pg, perm);
 		ipc_send(whom, r, pg, perm);
 		sys_page_unmap(0, fsreq);
 	}

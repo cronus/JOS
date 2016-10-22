@@ -118,6 +118,7 @@ spawn(const char *prog, const char **argv)
 		perm = PTE_P | PTE_U;
 		if (ph->p_flags & ELF_PROG_FLAG_WRITE)
 			perm |= PTE_W;
+        //cprintf("[spawn]va:%x, perm:%x\n", ph->p_va, perm);
 		if ((r = map_segment(child, ph->p_va, ph->p_memsz,
 				     fd, ph->p_filesz, ph->p_offset, perm)) < 0)
 			goto error;
@@ -290,6 +291,8 @@ map_segment(envid_t child, uintptr_t va, size_t memsz,
 				return r;
 			if ((r = sys_page_map(0, UTEMP, child, (void*) (va + i), perm)) < 0)
 				panic("spawn: sys_page_map data: %e", r);
+            //cprintf("[map_segment]addr:%x, content:%x, perm:%x\n", (va+i), uvpt[PGNUM(UTEMP)], perm);
+            //cprintf("[map_segment]addr:%x, content:%x, perm:%x\n", (va+i), uvpt[PGNUM(va+i)], perm);
 			sys_page_unmap(0, UTEMP);
 		}
 	}
@@ -301,6 +304,19 @@ static int
 copy_shared_pages(envid_t child)
 {
 	// LAB 5: Your code here.
+
+    uint32_t addr;
+    int r;
+    //cprintf("[copy_shared_pages]child id:%x\n", child);
+    for (addr = UTEXT; addr < (USTACKTOP - PGSIZE); addr += PGSIZE) {
+        if (uvpd[PDX(addr)]) {
+            if (PGOFF(uvpt[PGNUM(addr)]) & PTE_SHARE) {
+                //cprintf("[copy_shared_pages]addr:%x, content:%x\n", addr, uvpt[PGNUM(addr)]);
+                if ((r = sys_page_map(0, (void*)addr, child, (void*)addr, uvpt[PGNUM(addr)] & PTE_SYSCALL)) < 0)
+	            	panic("sys_page_map child: %e", r);
+            }
+        }
+    }
 	return 0;
 }
 

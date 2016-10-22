@@ -253,6 +253,14 @@ trap_dispatch(struct Trapframe *tf)
 
 	// Handle keyboard and serial interrupts.
 	// LAB 5: Your code here.
+    if (tf->tf_trapno == IRQ_OFFSET + IRQ_KBD) {
+        kbd_intr();
+        return;
+    }
+    if (tf->tf_trapno == IRQ_OFFSET + IRQ_SERIAL) {
+        serial_intr();
+        return;
+    }
 
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
@@ -394,6 +402,7 @@ page_fault_handler(struct Trapframe *tf)
             esp -= sizeof(uint32_t);
         }
         else {
+            //cprintf("[page_fault_handler]size of trap frame:%x\n", sizeof(struct UTrapframe));
             user_mem_assert(curenv, (void*)UXSTACKTOP - sizeof(struct UTrapframe), 
                             sizeof(struct UTrapframe), PTE_W);
             esp  = UXSTACKTOP;
@@ -425,8 +434,11 @@ page_fault_handler(struct Trapframe *tf)
 
 
 	// Destroy the environment that caused the fault.
-	cprintf("[%08x] user fault va %08x ip %08x\n",
-		curenv->env_id, fault_va, tf->tf_eip);
+    struct PageInfo * page;
+    pte_t * pte_ptr; 
+    page = page_lookup(curenv->env_pgdir, (void*)fault_va, &pte_ptr);
+	cprintf("[%08x] user fault va %08x ip %08x, pte content:%x\n",
+		curenv->env_id, fault_va, tf->tf_eip, *pte_ptr);
 	print_trapframe(tf);
 	env_destroy(curenv);
 }

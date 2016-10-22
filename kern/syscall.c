@@ -151,7 +151,22 @@ sys_env_set_trapframe(envid_t envid, struct Trapframe *tf)
 	// LAB 5: Your code here.
 	// Remember to check whether the user has supplied us with a good
 	// address!
-	panic("sys_env_set_trapframe not implemented");
+	// panic("sys_env_set_trapframe not implemented");
+
+    struct Env * thisenv;
+    int r;
+    
+    r = envid2env(envid, &thisenv, 1);
+    if (r == 0) {
+        thisenv->env_tf = *tf;
+        thisenv->env_tf.tf_cs     |= 3;
+        thisenv->env_tf.tf_eflags |= FL_IF;
+
+        return r;
+    }
+    else {
+        return r;
+    }
 }
 
 // Set the page fault upcall for 'envid' by modifying the corresponding struct
@@ -212,17 +227,19 @@ sys_page_alloc(envid_t envid, void *va, int perm)
     struct PageInfo * new_page;
     int r;
     
+    //cprintf("[sys_page_alloc]1env id:%x, va:%x, thisenv content:%x\n", curenv->env_id, va, *(uint32_t*)0x804004);
     if (((uint32_t)va >= UTOP) || 
-        ((perm != (PTE_U|PTE_P)) &&
-        (perm != (PTE_U|PTE_P|PTE_AVAIL)) &&
-        (perm != (PTE_U|PTE_P|PTE_W)) && 
-        (perm != (PTE_U|PTE_P|PTE_AVAIL|PTE_W)))) {
+        (((perm & (PTE_U|PTE_P)) != (PTE_U|PTE_P)) ||
+        //(perm != (PTE_U|PTE_P|PTE_AVAIL)) &&
+        //(perm != (PTE_U|PTE_P|PTE_W)) && 
+        ((perm | PTE_SYSCALL) != PTE_SYSCALL))) {
         return -E_INVAL;
     }
     r = envid2env(envid, &this_env, 1);
     if (r == 0) {
         new_page = page_alloc(ALLOC_ZERO);
         if (new_page != NULL) {
+            //cprintf("[sys_page_alloc]3env id:%x, va:%x, thisenv content:%x, new page:%x, ref:%x\n", curenv->env_id, va, *(uint32_t*)0x804004, new_page, new_page->pp_ref);
             return page_insert(this_env->env_pgdir, new_page, va, perm);
         }
         else {
@@ -274,30 +291,31 @@ sys_page_map(envid_t srcenvid, void *srcva,
 
     if (((uint32_t)srcva >= UTOP) || 
         ((uint32_t)dstva >= UTOP) ||
-        ((perm != (PTE_U|PTE_P)) &&
-        (perm != (PTE_U|PTE_P|PTE_AVAIL)) &&
-        (perm != (PTE_U|PTE_P|PTE_W)) && 
-        (perm != (PTE_U|PTE_P|PTE_AVAIL|PTE_W)))) {
+        (((perm & (PTE_U|PTE_P))!= (PTE_U|PTE_P)) ||
+        //(perm != (PTE_U|PTE_P|PTE_AVAIL)) &&
+        //(perm != (PTE_U|PTE_P|PTE_W)) && 
+        ((perm | PTE_SYSCALL)!= PTE_SYSCALL))) {
         return -E_INVAL;
     }
 
     r_src = envid2env(srcenvid, &src_env, 1);
-    r_dst = envid2env(dstenvid, &dst_env, 1);
-    if (r_src == 0 && r_dst == 0) {
+    r_dst = envid2env(dstenvid, &dst_env, 0);
+    //cprintf("r_src:%d, destid,:%x, r_dst:%d, return:%d\n", r_src, dstenvid, r_dst, r_src|r_dst);
+    if ((r_src == 0) && (r_dst == 0)) {
         if ((src_page = page_lookup(src_env->env_pgdir, srcva, &src_pte_ptr))) {
             if ((perm & PTE_W) && !(PGOFF(*src_pte_ptr) & PTE_W)) {
-                //cprintf("1perm:%x\n", PGOFF(*src_pte_ptr));
                 return -E_INVAL;
             }
+            //cprintf("[sys_page_map]dstva:%x, srccontent:%x, perm:%x\n", dstva, *src_pte_ptr, perm);
             return page_insert(dst_env->env_pgdir, src_page, dstva, perm);
         }
         else {
-            cprintf("2\n");
+            //cprintf("2\n");
             return -E_INVAL;
         }
     }
     else {
-        cprintf("3\n");
+        //cprintf("3\n");
         return r_src | r_dst;
     }
 }
@@ -325,6 +343,7 @@ sys_page_unmap(envid_t envid, void *va)
     }
     r = envid2env(envid, &this_env, 1);
     if (r == 0) {
+        //cprintf("[sys_page_umap]va:%x\n", va);
         page_remove(this_env->env_pgdir, va);
         return 0;
     }
@@ -386,15 +405,15 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
     src_pte_ptr = pgdir_walk(curenv->env_pgdir, srcva, 0);
     tgt_pte_ptr = pgdir_walk(tgt_env->env_pgdir, tgt_env->env_ipc_dstva, 1);
 
-    bool perm_check =  ((perm != (PTE_U|PTE_P)) &&
-                       (perm != (PTE_U|PTE_P|PTE_AVAIL)) &&
-                       (perm != (PTE_U|PTE_P|PTE_W)) && 
-                       (perm != (PTE_U|PTE_P|PTE_AVAIL|PTE_W)));
+    bool perm_check =  (((perm & (PTE_U|PTE_P)) != (PTE_U|PTE_P)) ||
+                       //(perm != (PTE_U|PTE_P|PTE_AVAIL)) &&
+                       //(perm != (PTE_U|PTE_P|PTE_W)) && 
+                       ((perm | PTE_SYSCALL) != PTE_SYSCALL));
     //check srcva
     if ((((uint32_t)srcva < UTOP) && ((uint32_t)srcva % PGSIZE)) ||
         (((uint32_t)srcva < UTOP) && perm_check) ||
         (((uint32_t)srcva < UTOP) && (src_pte_ptr == NULL)) ||
-        (((perm) & PTE_W) && ((PGOFF(*src_pte_ptr) & PTE_W) != PTE_W))) {
+        (((uint32_t)srcva < UTOP) && ((perm) & PTE_W) && ((PGOFF(*src_pte_ptr) & PTE_W) != PTE_W))) {
         return -E_INVAL;
     }
 
@@ -412,12 +431,11 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
                 tgt_env->env_ipc_perm    = perm;
                 sys_page_map(tgt_env->env_ipc_from, srcva,
                              envid, tgt_env->env_ipc_dstva, perm);
+                //cprintf("map, src:%x, destva: %x, content:%x,r:%d\n", srcva,tgt_env->env_ipc_dstva, (*(uint32_t*)tgt_env->env_ipc_dstva),r);
             }
             else {
                 tgt_env->env_ipc_perm    = 0;
             }
-            if (tgt_env->env_tf.tf_regs.reg_eax != 0xc)
-                print_trapframe(&(tgt_env->env_tf));
             tgt_env->env_tf.tf_regs.reg_eax = 0;
             tgt_env->env_status             = ENV_RUNNABLE;
             //cprintf("\n[sys_ipc_try_send]cpu:%d, %x send successfully, set %x runnable, set return value eax:%x\n",curenv->env_cpunum, curenv->env_id, tgt_env->env_id, tgt_env->env_tf.tf_regs.reg_eax);
@@ -513,6 +531,9 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
             return sys_ipc_try_send(a1, a2, (void*)a3, (unsigned)a4);
         case SYS_ipc_recv:
             return sys_ipc_recv((void*)a1);
+        // bocui: for lab5 exe 7
+        case SYS_env_set_trapframe:
+            return sys_env_set_trapframe((envid_t)a1, (struct Trapframe*)a2);
         // old default till lab4
 	    //default:
 		//    return -E_NO_SYS;
