@@ -89,6 +89,7 @@ envid2env(envid_t envid, struct Env **env_store, bool checkperm)
 	// (i.e., does not refer to a _previous_ environment
 	// that used the same slot in the envs[] array).
 	e = &envs[ENVX(envid)];
+    //cprintf("env status:%x, env id:%x\n", e->env_status, e->env_id);
 	if (e->env_status == ENV_FREE || e->env_id != envid) {
 		*env_store = 0;
 		return -E_BAD_ENV;
@@ -191,7 +192,6 @@ env_setup_vm(struct Env *e)
 
 	// LAB 3: Your code here.
     uint32_t n;
-    pte_t * pte_ptr;
     p->pp_ref += 1;
     e->env_pgdir = (pde_t*)page2kva(p);
     //copy kern_pgdir to env_pgdir
@@ -302,7 +302,7 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 	env_free_list = e->env_link;
 	*newenv_store = e;
 
-	// cprintf("[%08x] new env %08x\n", curenv ? curenv->env_id : 0, e->env_id);
+	//cprintf("[%08x] new env %08x\n", curenv ? curenv->env_id : 0, e->env_id);
 	return 0;
 }
 
@@ -411,7 +411,8 @@ load_icode(struct Env *e, uint8_t *binary)
                         memmove(KADDR(PTE_ADDR(*pte_ptr))+rounddown_offset, binary + (ph->p_offset), PGSIZE - rounddown_offset);
                     }
                     else if ((ph->p_filesz < PGSIZE - rounddown_offset)) {
-                        memmove(KADDR(PTE_ADDR(*pte_ptr))+rounddown_offset, binary + (ph->p_offset), ph->p_filesz - rounddown_offset);
+                        //memmove(KADDR(PTE_ADDR(*pte_ptr))+rounddown_offset, binary + (ph->p_offset), ph->p_filesz - rounddown_offset);
+                        memmove(KADDR(PTE_ADDR(*pte_ptr))+rounddown_offset, binary + (ph->p_offset), ph->p_filesz);
                         memset(KADDR(PTE_ADDR(*pte_ptr))+ph->p_filesz, 0, PGSIZE - ph->p_filesz);
                     }
                 }
@@ -420,8 +421,10 @@ load_icode(struct Env *e, uint8_t *binary)
                     memmove(KADDR(PTE_ADDR(*pte_ptr)), binary + (ph->p_offset) - rounddown_offset + i - ROUNDDOWN(ph->p_va, PGSIZE), PGSIZE);
                 }
                 else if ((i <= ph->p_va + ph->p_filesz) && (i + PGSIZE > ph->p_va + ph->p_filesz)) {
+                    //cprintf("7,va of pte:%x, content in pte:%x, va of content: %x, round_offset %x\n", pte_ptr, *pte_ptr, KADDR(PTE_ADDR(*pte_ptr)), rounddown_offset);
                     memmove(KADDR(PTE_ADDR(*pte_ptr)), binary + (ph->p_offset) - rounddown_offset + i - ROUNDDOWN(ph->p_va, PGSIZE), ph->p_filesz - (i - ph->p_va));
-                    memset(KADDR(PTE_ADDR(*pte_ptr))+ph->p_filesz, 0, i + PGSIZE - ph->p_filesz - ph->p_va);
+                    memset(KADDR(PTE_ADDR(*pte_ptr))+ (ph->p_filesz + ph->p_va - i), 0, i + PGSIZE - ph->p_filesz - ph->p_va);
+                    //memset(KADDR(PTE_ADDR(*pte_ptr))+ph->p_filesz, 0, i + PGSIZE - ph->p_filesz - ph->p_va);
                 }
                 else {
                     //cprintf("5,va of pte:%x, content in pte:%x, va of content: %x\n", pte_ptr, *pte_ptr, KADDR(PTE_ADDR(*pte_ptr)));
@@ -444,7 +447,7 @@ load_icode(struct Env *e, uint8_t *binary)
     page_insert(e->env_pgdir, user_stack, (void*)(USTACKTOP - PGSIZE), PTE_W | PTE_U);
     
     e->env_tf.tf_eip = elf_hdr->e_entry; 
-    //cprintf("[load_icode]Loading binary finishes!\n");
+    //cprintf("[load_icode]Loading binary finishes!\nEntry address:%x\n", e->env_tf.tf_eip);
 }
 
 //
@@ -488,7 +491,7 @@ env_free(struct Env *e)
 		lcr3(PADDR(kern_pgdir));
 
 	// Note the environment's demise.
-	// cprintf("[%08x] free env %08x\n", curenv ? curenv->env_id : 0, e->env_id);
+	//cprintf("[%08x] free env %08x\n", curenv ? curenv->env_id : 0, e->env_id);
 
 	// Flush all mapped pages in the user portion of the address space
 	static_assert(UTOP % PTSIZE == 0);

@@ -371,7 +371,6 @@ page_init(void)
         pages[i].pp_ref  = 1;
         pages[i].pp_link = NULL;
     }
-    //cprintf("page_init:2\n");
 
     // currently used memory, kernel, pgdir and free list
     uint32_t next_free = (uint32_t)pages - KERNBASE 
@@ -382,9 +381,7 @@ page_init(void)
         pages[i].pp_ref  = 1;
         pages[i].pp_link = NULL;
     }
-    //cprintf("page_init:3\n");
     pages[next_free/PGSIZE].pp_link = &pages[npages_basemem-1];
-    //cprintf("page_init:4\n");
 }
 
 //

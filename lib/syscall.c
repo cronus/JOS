@@ -122,3 +122,9 @@ sys_time_msec(void)
 {
 	return (unsigned int) syscall(SYS_time_msec, 0, 0, 0, 0, 0, 0);
 }
+
+int
+sys_transmit_pkt()
+{
+	return syscall(SYS_ipc_try_send, 0, 0, 0, 0, 0, 0);
+}

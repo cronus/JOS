@@ -30,7 +30,10 @@ struct pci_driver pci_attach_class[] = {
 
 // pci_attach_vendor matches the vendor ID and device ID of a PCI device. key1
 // and key2 should be the vendor ID and device ID respectively
+// bocui: lab 6 exe 3
+// 82540EM-A Vender ID: 8086h, Devide ID: 100E (desktop)
 struct pci_driver pci_attach_vendor[] = {
+    { E1000_VENDER_ID, E1000_DEVICE_ID, &e1000_func_enable},
 	{ 0, 0, 0 },
 };
 
@@ -73,6 +76,7 @@ pci_attach_match(uint32_t key1, uint32_t key2,
 
 	for (i = 0; list[i].attachfn; i++) {
 		if (list[i].key1 == key1 && list[i].key2 == key2) {
+            // bocui: run attach function in the following statment
 			int r = list[i].attachfn(pcif);
 			if (r > 0)
 				return r;
@@ -88,6 +92,9 @@ pci_attach_match(uint32_t key1, uint32_t key2,
 static int
 pci_attach(struct pci_func *f)
 {
+ 
+    // bocui comment:
+    // device can be identified by class or vender (lab6 PCI Interface section)
 	return
 		pci_attach_match(PCI_CLASS(f->dev_class),
 				 PCI_SUBCLASS(f->dev_class),
@@ -130,6 +137,7 @@ pci_scan_bus(struct pci_bus *bus)
 	memset(&df, 0, sizeof(df));
 	df.bus = bus;
 
+    //cprintf("pci scan bus\n");
 	for (df.dev = 0; df.dev < 32; df.dev++) {
 		uint32_t bhlc = pci_conf_read(&df, PCI_BHLC_REG);
 		if (PCI_HDRTYPE_TYPE(bhlc) > 1)	    // Unsupported or no device

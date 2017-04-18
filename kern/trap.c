@@ -167,6 +167,7 @@ void
 print_trapframe(struct Trapframe *tf)
 {
 	cprintf("TRAP frame at %p from CPU %d\n", tf, cpunum());
+    cprintf("env: %x\n", curenv->env_id);
 	print_regs(&tf->tf_regs);
 	cprintf("  es   0x----%04x\n", tf->tf_es);
 	cprintf("  ds   0x----%04x\n", tf->tf_ds);
@@ -248,14 +249,19 @@ trap_dispatch(struct Trapframe *tf)
     if (tf->tf_trapno == IRQ_OFFSET + IRQ_TIMER) {
         //cprintf("Timer interrupt\n");
         lapic_eoi();
+	    // Add time tick increment to clock interrupts.
+	    // Be careful! In multiprocessors, clock interrupts are
+	    // triggered on every CPU.
+        // bocui comment: need only call time_tick() once for one time interrupt
+        //                on multiple cpus
+	    // LAB 6: Your code here.
+        if (thiscpu == bootcpu) {
+            time_tick();
+        }
         sched_yield();
         return;
     }
 
-	// Add time tick increment to clock interrupts.
-	// Be careful! In multiprocessors, clock interrupts are
-	// triggered on every CPU.
-	// LAB 6: Your code here.
 
 
 	// Handle keyboard and serial interrupts.

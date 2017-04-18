@@ -12,6 +12,7 @@
 #include <kern/console.h>
 #include <kern/sched.h>
 #include <kern/time.h>
+#include <kern/e1000.h>
 
 // Print a string to the system console.
 // The string is exactly 'len' characters long.
@@ -402,7 +403,9 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
     pte_t * src_pte_ptr;
     pte_t * tgt_pte_ptr;
 
-    r = envid2env(envid, &tgt_env, 0);
+    if ((r = envid2env(envid, &tgt_env, 0)) != 0) {
+        panic("bad env id:%x", envid);
+    }
     src_pte_ptr = pgdir_walk(curenv->env_pgdir, srcva, 0);
     tgt_pte_ptr = pgdir_walk(tgt_env->env_pgdir, tgt_env->env_ipc_dstva, 1);
 
@@ -491,8 +494,15 @@ static int
 sys_time_msec(void)
 {
 	// LAB 6: Your code here.
-	panic("sys_time_msec not implemented");
+	//panic("sys_time_msec not implemented");
+    return time_msec();
 }
+
+int
+sys_transmit_pkt() {
+    return transmit_pkt();
+}
+
 
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
@@ -543,6 +553,12 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
         // bocui: for lab5 exe 7
         case SYS_env_set_trapframe:
             return sys_env_set_trapframe((envid_t)a1, (struct Trapframe*)a2);
+        // bocui: for lab6 exe 1
+        case SYS_time_msec:
+            return sys_time_msec();
+        // bocui for lab6 exe 7
+        case SYS_transmit_pkt:
+            return sys_transmit_pkt();
         // old default till lab4
 	    //default:
 		//    return -E_NO_SYS;
