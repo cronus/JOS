@@ -1,12 +1,13 @@
 #include <kern/e1000.h>
 #include <kern/pmap.h>
+#include <inc/error.h>
 
 // LAB 6: Your driver code here
 
 #define DESC_SIZE 8
 #define DESC_LEN  (DESC_SIZE/8) << 7 
-#define MAX_PACKET_SIZE 1518
-#define BUFFER_SIZE MAX_PACKET_SIZE * DESC_SIZE
+#define MAX_PKT_SZ 1518
+#define BUFFER_SIZE MAX_PKT_SZ * DESC_SIZE
 
 volatile uint32_t *pci_e1000;
 
@@ -42,10 +43,11 @@ e1000_func_enable(struct pci_func *pcif) {
      * TDBAL is used for 32-bit addresses and both TDBAL and TDBAH 
      * are used for 64-bit addresses.
      */
-
-    pci_e1000[E1000_TDBAL] = (uint32_t)tx_desc_list;
-    pci_e1000[E1000_TDBAH] = (uint32_t)((uint32_t)&tx_desc_list + 32);
-     //cprintf("tx_desc_list:%x, h:%x\n", (uint32_t)tx_desc_list,(uint32_t)((uint32_t)&tx_desc_list + 32));
+    
+    // Hw can only recognize pa, should be physical addr
+    pci_e1000[E1000_TDBAL] = PADDR(tx_desc_list);
+    pci_e1000[E1000_TDBAH] = 0x0;
+    //cprintf("tx_desc_list:%x, h:%x\n", pci_e1000[E1000_TDBAL], pci_e1000[E1000_TDBAH]);
 
     /* Set the Transmit Descriptor Length (TDLEN) register to the 
      * size (in bytes) of the descriptor ring.
@@ -114,8 +116,22 @@ e1000_func_enable(struct pci_func *pcif) {
         //cprintf("i:%x, addr: %x\n", i, tx_desc_list[i].addr);
         //cprintf("i+1:%x, next_addr:%x \n", i+1, tx_desc_list[i+1].addr);
     }
+
+    /* Set all the DD bit to 1
+     */
+    for (i = 0; i < DESC_SIZE; i = i + 1){
+        tx_desc_list[i].status   = 0x1;
+    }
      
-    transmit_pkt();
+    //transmit_pkt(0x2a, 0);
+    //transmit_pkt(0x2a, 0);
+    //transmit_pkt(0x2a, 0);
+    //transmit_pkt(0x2a, 0);
+    //transmit_pkt(0x2a, 0);
+    //transmit_pkt(0x2a, 0);
+    //transmit_pkt(0x2a, 0);
+    //transmit_pkt(0x2a, 0);
+    //transmit_pkt(0x2a, 0);
 
     return 1;
 }
@@ -130,15 +146,40 @@ e1000_func_enable(struct pci_func *pcif) {
  *         byte offset
  */
 int
-transmit_pkt () {
+transmit_pkt (uint32_t length, char* pkt) {
     
-    uint32_t tail;
+    uint32_t  tail;
+    uint8_t* pkt_buf;
 
-    tail = pci_e1000[E1000_TDT];
+    int i;
 
-    tx_desc_list[tail].cmd = 0x8;
+    tail         = pci_e1000[E1000_TDT];
+    pkt_buf      = KADDR(tx_desc_list[tail].addr);
+    
+    //cprintf("[transmit pkt]status: %x\n", tx_desc_list[tail].status);
 
-    pci_e1000[E1000_TDT] += 1;
+    // check DD is set to make sure next descriptor is available
+    if ((tx_desc_list[tail].status & E1000_TXD_STAT_DD) == E1000_TXD_STAT_DD) {
+        
+        // clean descriptor done
+        tx_desc_list[tail].status = 0x0;
 
-    return 0;
+        //for (i = 0; i < MAX_PKT_SZ/4; i++) {
+        //    pkt_buf[i] = 0x5a5a5a5a;
+        //}
+        for (i = 0; i < length; i++) {
+            pkt_buf[i] = pkt[i];
+        }
+
+        tx_desc_list[tail].length = length;
+        tx_desc_list[tail].cmd    = E1000_TXD_CMD_RS | E1000_TXD_CMD_EOP;
+
+        pci_e1000[E1000_TDT] = (tail + 1) & (0xf >> 1);
+
+        //cprintf("[transmit pkt]TDH, %x, TDT, %x, status: %x\n\n", pci_e1000[E1000_TDH], pci_e1000[E1000_TDT], tx_desc_list[tail].status);
+        return 0;
+    }
+    else {
+        return -E_BUF_FULL;
+    }
 }

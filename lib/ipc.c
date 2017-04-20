@@ -26,6 +26,7 @@ ipc_recv(envid_t *from_env_store, void *pg, int *perm_store)
 	//panic("ipc_recv not implemented");
 
     int r;
+    //cprintf("[ipc_recv]pg: %x\n",pg);
     if (pg != NULL) {
         r = sys_ipc_recv(pg);
     }

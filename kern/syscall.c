@@ -404,7 +404,7 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
     pte_t * tgt_pte_ptr;
 
     if ((r = envid2env(envid, &tgt_env, 0)) != 0) {
-        panic("bad env id:%x", envid);
+        panic("%e id:%x", r, envid);
     }
     src_pte_ptr = pgdir_walk(curenv->env_pgdir, srcva, 0);
     tgt_pte_ptr = pgdir_walk(tgt_env->env_pgdir, tgt_env->env_ipc_dstva, 1);
@@ -498,9 +498,20 @@ sys_time_msec(void)
     return time_msec();
 }
 
+/*  system call for packet transmit
+ *  check packet address before call transmit_pkt function
+ *      -E_INVAL if pkt >= UTOP
+ */
 int
-sys_transmit_pkt() {
-    return transmit_pkt();
+sys_transmit_pkt(uint32_t length, char* pkt) {
+
+    //cprintf("[sys_transmit_pkt]length:%x, pkt addr: %x\n", length, pkt);
+    //check pkt address
+    if ((uint32_t)pkt >= UTOP) {
+        return -E_INVAL;
+    }
+
+    return transmit_pkt(length, pkt);
 }
 
 
@@ -558,7 +569,7 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
             return sys_time_msec();
         // bocui for lab6 exe 7
         case SYS_transmit_pkt:
-            return sys_transmit_pkt();
+            return sys_transmit_pkt(a1, (char*)a2);
         // old default till lab4
 	    //default:
 		//    return -E_NO_SYS;

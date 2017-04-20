@@ -275,6 +275,7 @@ serve(void) {
 			cprintf("ns req %d from %08x\n", reqno, whom);
 		}
 
+		cprintf("ns req %d from %08x\n", reqno, whom);
 		// first take care of requests that do not contain an argument page
 		if (reqno == NSREQ_TIMER) {
 			process_timer(whom);
@@ -347,6 +348,7 @@ umain(int argc, char **argv)
 		return;
 	}
 
+    //cprintf(":%x, timer id: %x, input id:%x, output id:%x\n", this_env->envid,timer_envid, input_envid, output_envid);
 	// lwIP requires a user threading library; start the library and jump
 	// into a thread to continue initialization.
 	thread_init();

@@ -89,12 +89,11 @@ envid2env(envid_t envid, struct Env **env_store, bool checkperm)
 	// (i.e., does not refer to a _previous_ environment
 	// that used the same slot in the envs[] array).
 	e = &envs[ENVX(envid)];
-    //cprintf("env status:%x, env id:%x\n", e->env_status, e->env_id);
 	if (e->env_status == ENV_FREE || e->env_id != envid) {
+        //cprintf("env status:%x, env id:%x\n", e->env_status, e->env_id);
 		*env_store = 0;
 		return -E_BAD_ENV;
 	}
-
 	// Check that the calling environment has legitimate permission
 	// to manipulate the specified environment.
 	// If checkperm is set, the specified environment

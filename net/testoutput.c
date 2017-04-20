@@ -18,6 +18,7 @@ umain(int argc, char **argv)
 	binaryname = "testoutput";
 
 	output_envid = fork();
+    //cprintf("output env id:%x\n", output_envid);
 	if (output_envid < 0)
 		panic("error forking");
 	else if (output_envid == 0) {

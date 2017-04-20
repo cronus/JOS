@@ -337,10 +337,10 @@ serve(void)
 
 		pg = NULL;
 		if (req == FSREQ_OPEN) {
-            //cprintf("[serve]req is open, path:%s\n", ((struct Fsreq_open*)fsreq)->req_path);
+            //cprintf("[fs serve]req is open, path:%s\n", ((struct Fsreq_open*)fsreq)->req_path);
 			r = serve_open(whom, (struct Fsreq_open*)fsreq, &pg, &perm);
 		} else if (req < NHANDLERS && handlers[req]) {
-            //cprintf("[serve]req is others\n");
+            //cprintf("[fs serve]req is others\n");
 			r = handlers[req](whom, fsreq);
 		} else {
 			cprintf("Invalid request code %d from %08x\n", req, whom);

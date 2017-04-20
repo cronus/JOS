@@ -124,7 +124,7 @@ sys_time_msec(void)
 }
 
 int
-sys_transmit_pkt()
+sys_transmit_pkt(uint32_t length, char* pkt)
 {
-	return syscall(SYS_ipc_try_send, 0, 0, 0, 0, 0, 0);
+	return syscall(SYS_transmit_pkt, 1, length, (uint32_t)pkt, 0, 0, 0);
 }
