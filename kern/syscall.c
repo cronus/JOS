@@ -514,6 +514,12 @@ sys_transmit_pkt(uint32_t length, char* pkt) {
     return transmit_pkt(length, pkt);
 }
 
+int
+sys_receive_pkt (uint16_t* length, char* rx_data) {
+
+    return receive_pkt(length, rx_data);
+}
+
 
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
@@ -569,7 +575,9 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
             return sys_time_msec();
         // bocui for lab6 exe 7
         case SYS_transmit_pkt:
-            return sys_transmit_pkt(a1, (char*)a2);
+            return sys_transmit_pkt((uint16_t)a1, (char*)a2);
+        case SYS_receive_pkt:
+            return sys_receive_pkt((uint16_t*)a1, (char*)a2);
         // old default till lab4
 	    //default:
 		//    return -E_NO_SYS;

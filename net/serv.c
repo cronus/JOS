@@ -275,7 +275,7 @@ serve(void) {
 			cprintf("ns req %d from %08x\n", reqno, whom);
 		}
 
-		cprintf("ns req %d from %08x\n", reqno, whom);
+		//cprintf("ns req %d from %08x\n", reqno, whom);
 		// first take care of requests that do not contain an argument page
 		if (reqno == NSREQ_TIMER) {
 			process_timer(whom);

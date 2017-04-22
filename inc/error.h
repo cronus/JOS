@@ -26,7 +26,8 @@ enum {
 	E_NOT_EXEC	,	// File not a valid executable
 	E_NOT_SUPP	,	// Operation not supported
 
-    E_BUF_FULL,   // Pci ring buffer full
+    E_TX_BUF_FULL,   // Pci tx ring buffer full
+    E_RX_BUF_EMPTY,  // Pci rx ring buffer empty
 
 	MAXERROR
 };

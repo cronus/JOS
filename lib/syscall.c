@@ -128,3 +128,9 @@ sys_transmit_pkt(uint32_t length, char* pkt)
 {
 	return syscall(SYS_transmit_pkt, 1, length, (uint32_t)pkt, 0, 0, 0);
 }
+
+int
+sys_receive_pkt(int* length, char* rx_data)
+{
+	return syscall(SYS_receive_pkt, 1, (uint32_t)length, (uint32_t)rx_data, 0, 0, 0);
+}
