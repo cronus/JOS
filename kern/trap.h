@@ -30,7 +30,6 @@ void bound();
 void illop();
 void device();
 void dblflt();
-void tss();
 void segnp();
 void stack();
 void gpflt();

@@ -74,7 +74,7 @@ trap_init(void)
     SETGATE(idt[T_ILLOP],   1, GD_KT, &illop,  0);
     SETGATE(idt[T_DEVICE],  1, GD_KT, &device, 0);
     SETGATE(idt[T_DBLFLT],  1, GD_KT, &dblflt, 0);
-    SETGATE(idt[T_TSS],     1, GD_KT, &tss,    0);
+    SETGATE(idt[T_TSS],     1, GD_KT, &gdt[GD_TSS0 >> 3],    0);
     SETGATE(idt[T_SEGNP],   1, GD_KT, &segnp,  0);
     SETGATE(idt[T_STACK],   1, GD_KT, &stack,  0);
     SETGATE(idt[T_GPFLT],   1, GD_KT, &gpflt,  0);
